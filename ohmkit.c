@@ -277,7 +277,7 @@ static void color_encode(double target) {
     int exp10 = 0;
     double mant = absv;
     while (mant >= 100.0) { mant /= 10.0; exp10++; }
-    while (mant < 1.0)    { mant *= 10.0; exp10--; }
+    while (mant < 10.0)   { mant *= 10.0; exp10--; }
 
     int best_i = 0; double best_diff = 1e30;
     for (int i = 0; i < 24; i++) {
@@ -286,16 +286,21 @@ static void color_encode(double target) {
     }
 
     int val = e24[best_i];
-    /* val 是两位数，如 47；实际值 = val × 10^exp10 */
-    int d1 = val / 10;       // 第一位
-    int d2 = val % 10;       // 第二位
-    int mul = exp10;          // 乘数指数
+    /* val 是两位数（10~91），实际值 = val × 10^exp10 */
+    int d1 = val / 10;
+    int d2 = val % 10;
+    int mul = exp10;
 
-    /* 输出 4 环（金 = ±5%） */
+    /* 乘数颜色：mul>=0 用 mult_names[mul]，mul=-1 金，mul=-2 银 */
+    const char *mul_en, *mul_cn;
+    if (mul >= 0)      { mul_en = digit_en[mul];   mul_cn = digit_names[mul]; }
+    else if (mul == -1){ mul_en = "gold";          mul_cn = "金"; }
+    else              { mul_en = "silver";         mul_cn = "银"; }
+
     printf("%s %s %s %s  →  ",
-           digit_en[d1], digit_en[d2], mult_names[mul], "gold");
+           digit_en[d1], digit_en[d2], mul_en, "gold");
     printf("%s %s %s %s  =  %g Ω ±5%%\n",
-           digit_names[d1], digit_names[d2], mult_names[mul], "金",
+           digit_names[d1], digit_names[d2], mul_cn, "金",
            val * pow(10, mul));
 }
 
