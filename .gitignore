@@ -1,0 +1,14 @@
+# 编译产物
+ohmkit
+*.o
+
+# 编辑器
+*.swp
+*.swo
+*~
+.vscode/
+.idea/
+
+# 系统
+.DS_Store
+Thumbs.db
