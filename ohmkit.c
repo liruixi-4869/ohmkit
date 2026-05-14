@@ -494,7 +494,7 @@ static void usage(const char *prog) {
     printf("用法:\n");
     printf("  %s [表达式]                 串并联计算\n", prog);
     printf("  %s -v [表达式]              显示详细步骤\n", prog);
-    printf("  %s delta  R12 R23 R13       Δ → Y 变换\n", prog);
+    printf("  %s delta  R23 R13 R12       Δ → Y 变换\n", prog);
     printf("  %s wye    R1  R2  R3        Y → Δ 变换\n", prog);
     printf("  %s bridge R1 R2 R3 R4 R5    桥式电路等效电阻\n", prog);
     printf("  %s color  色1 色2 色3 ...   色环 → 阻值\n", prog);
@@ -511,11 +511,12 @@ int main(int argc, char **argv) {
         }
 
         if (strcmp(argv[1], "delta") == 0 && argc == 5) {
-            Frac r1 = frac_from_double(atof(argv[2]));
-            Frac r2 = frac_from_double(atof(argv[3]));
-            Frac r3 = frac_from_double(atof(argv[4]));
-            DeltaWye dw = delta_to_wye(r1, r2, r3);
-            printf("Δ (%s, %s, %s) → Y\n",
+            /* 输入顺序: R23 R13 R12 */
+            Frac R23 = frac_from_double(atof(argv[2]));
+            Frac R13 = frac_from_double(atof(argv[3]));
+            Frac R12 = frac_from_double(atof(argv[4]));
+            DeltaWye dw = delta_to_wye(R12, R23, R13);
+            printf("Δ (R23=%s, R13=%s, R12=%s) → Y\n",
                    argv[2], argv[3], argv[4]);
             printf("  R1 = "); frac_print(dw.r1); printf(" (≈ %.4f Ω)\n", frac_to_double(dw.r1));
             printf("  R2 = "); frac_print(dw.r2); printf(" (≈ %.4f Ω)\n", frac_to_double(dw.r2));
@@ -597,8 +598,9 @@ int main(int argc, char **argv) {
         int n = sscanf(line, "%31s %lf %lf %lf %lf %lf", cmd, &v[0],&v[1],&v[2],&v[3],&v[4]);
 
         if (strcmp(cmd, "delta") == 0 && n >= 4) {
-            Frac r1=frac_from_double(v[0]), r2=frac_from_double(v[1]), r3=frac_from_double(v[2]);
-            DeltaWye dw = delta_to_wye(r1, r2, r3);
+            /* 输入顺序: R23 R13 R12 */
+            Frac R23=frac_from_double(v[0]), R13=frac_from_double(v[1]), R12=frac_from_double(v[2]);
+            DeltaWye dw = delta_to_wye(R12, R23, R13);
             printf("Δ→Y:  R1="); frac_print(dw.r1);
             printf("  R2="); frac_print(dw.r2);
             printf("  R3="); frac_print(dw.r3);
