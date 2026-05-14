@@ -531,9 +531,9 @@ int main(int argc, char **argv) {
             DeltaWye dw = wye_to_delta(ra, rb, rc);
             printf("Y (%s, %s, %s) → Δ\n",
                    argv[2], argv[3], argv[4]);
-            printf("  R12 = "); frac_print(dw.r1); printf(" (≈ %.4f Ω)\n", frac_to_double(dw.r1));
             printf("  R23 = "); frac_print(dw.r2); printf(" (≈ %.4f Ω)\n", frac_to_double(dw.r2));
             printf("  R13 = "); frac_print(dw.r3); printf(" (≈ %.4f Ω)\n", frac_to_double(dw.r3));
+            printf("  R12 = "); frac_print(dw.r1); printf(" (≈ %.4f Ω)\n", frac_to_double(dw.r1));
             return 0;
         }
 
@@ -611,9 +611,9 @@ int main(int argc, char **argv) {
         if (strcmp(cmd, "wye") == 0 && n >= 4) {
             Frac ra=frac_from_double(v[0]), rb=frac_from_double(v[1]), rc=frac_from_double(v[2]);
             DeltaWye dw = wye_to_delta(ra, rb, rc);
-            printf("Y→Δ:  R12="); frac_print(dw.r1);
-            printf("  R23="); frac_print(dw.r2);
+            printf("Y→Δ:  R23="); frac_print(dw.r2);
             printf("  R13="); frac_print(dw.r3);
+            printf("  R12="); frac_print(dw.r1);
             printf("\n     (≈ %.4f, %.4f, %.4f Ω)\n",
                    frac_to_double(dw.r1),frac_to_double(dw.r2),frac_to_double(dw.r3));
             continue;
