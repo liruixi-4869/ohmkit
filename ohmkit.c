@@ -92,56 +92,59 @@ static Frac frac_from_double(double dv) {
    ═══════════════════════════════════════════════════════════════ */
 
 /*
- *        R1                         Ra
- *       / \                        / \
- *      /   \                      /   \
- *   R3 ----- R2      ←→        Rc --- Rb
- *    (Delta)                    (Wye / 星形)
+ *          1
+ *         / \
+ *     R12/   \R13          R1
+ *       /     \             |
+ *      2-------3    ←→      O
+ *         R23              / \
+ *                        R2   R3
+ *       (Δ)               (Y)
  *
- *  桥式电路（Wheatstone Bridge）:
- *      ┌──R1──┬──R3──┐
+ *  桥式电路：
+ *      ┌──R1──C──R3──┐
  *    A─┤      R5      ├─B
- *      └──R2──┴──R4──┘
- *   左三角 (R1, R2, R5) Δ→Y 后即化为纯串并联。
+ *      └──R2──D──R4──┘
+ *   左三角 (R1=A-C, R2=A-D, R5=C-D) → (R12,R23,R13) → Δ→Y
  */
 
-typedef struct { Frac a, b, c; } DeltaWye;
+typedef struct { Frac r1, r2, r3; } DeltaWye;
 
-/* Δ → Y：三边电阻 → 星形三臂 */
-static DeltaWye delta_to_wye(Frac R1, Frac R2, Frac R3) {
-    Frac sum = frac_add(frac_add(R1, R2), R3);
+/* Δ → Y：R1 = R12·R13/Σ, R2 = R12·R23/Σ, R3 = R23·R13/Σ */
+static DeltaWye delta_to_wye(Frac R12, Frac R23, Frac R13) {
+    Frac sum = frac_add(frac_add(R12, R23), R13);
     if (frac_is_zero(sum)) return (DeltaWye){{0,1},{0,1},{0,1}};
     return (DeltaWye){
-        frac_div(frac_mul(R1, R2), sum),   // Ra = R1·R2 / (R1+R2+R3)
-        frac_div(frac_mul(R2, R3), sum),   // Rb = R2·R3 / (R1+R2+R3)
-        frac_div(frac_mul(R3, R1), sum),   // Rc = R3·R1 / (R1+R2+R3)
+        frac_div(frac_mul(R12, R13), sum),   // R1 = R12·R13 / (R12+R23+R13)
+        frac_div(frac_mul(R12, R23), sum),   // R2 = R12·R23 / (R12+R23+R13)
+        frac_div(frac_mul(R23, R13), sum),   // R3 = R23·R13 / (R12+R23+R13)
     };
 }
 
-/* Y → Δ：星形三臂 → 三边电阻 */
-static DeltaWye wye_to_delta(Frac Ra, Frac Rb, Frac Rc) {
-    Frac num = frac_add(frac_add(frac_mul(Ra, Rb), frac_mul(Rb, Rc)),
-                        frac_mul(Rc, Ra));
-    if (frac_is_zero(Rc) || frac_is_zero(Ra) || frac_is_zero(Rb))
+/* Y → Δ：R12 = (R1·R2+R2·R3+R3·R1)/R3, R23 = N/R1, R13 = N/R2 */
+static DeltaWye wye_to_delta(Frac R1, Frac R2, Frac R3) {
+    Frac num = frac_add(frac_add(frac_mul(R1, R2), frac_mul(R2, R3)),
+                        frac_mul(R3, R1));
+    if (frac_is_zero(R3) || frac_is_zero(R1) || frac_is_zero(R2))
         return (DeltaWye){{0,1},{0,1},{0,1}};
     return (DeltaWye){
-        frac_div(num, Rc),     // R1 = (Ra·Rb+Rb·Rc+Rc·Ra) / Rc
-        frac_div(num, Ra),     // R2 = ... / Ra
-        frac_div(num, Rb),     // R3 = ... / Rb
+        frac_div(num, R3),     // R12 = N / R3
+        frac_div(num, R1),     // R23 = N / R1
+        frac_div(num, R2),     // R13 = N / R2
     };
 }
 
-/* 桥式电路求解：5 个电阻 R1~R5，取左三角 (R1,R2,R5) 做 Δ→Y */
+/* 桥式电路求解 */
 static Frac bridge_solve(Frac R1, Frac R2, Frac R3, Frac R4, Frac R5) {
-    /* 左三角 (R1,R2,R5) Δ→Y：Ra 接 A, Rb 接 D, Rc 接 C */
+    /* 左三角 (R1,R2,R5) = (R12,R23,R13) → Y (r1 接 C, r2 接 A, r3 接 D) */
     DeltaWye dw = delta_to_wye(R1, R2, R5);
 
-    /* 变换后：A—Ra—O, O—Rc—C—R3—B, O—Rb—D—R4—B */
-    Frac path_c = frac_add(dw.c, R3);   // Rc + R3
-    Frac path_d = frac_add(dw.b, R4);   // Rb + R4
-    Frac mid    = frac_par(path_c, path_d);
+    /* A→r2→O→r1→C→R3→B  与  A→r2→O→r3→D→R4→B */
+    Frac path_top = frac_add(dw.r1, R3);   // r1 + R3
+    Frac path_bot = frac_add(dw.r3, R4);   // r3 + R4
+    Frac mid      = frac_par(path_top, path_bot);
 
-    return frac_add(dw.a, mid);          // Ra + (path_c || path_d)
+    return frac_add(dw.r2, mid);            // r2 + (path_top || path_bot)
 }
 
 /* ═══════════════════════════════════════════════════════════════
@@ -491,8 +494,8 @@ static void usage(const char *prog) {
     printf("用法:\n");
     printf("  %s [表达式]                 串并联计算\n", prog);
     printf("  %s -v [表达式]              显示详细步骤\n", prog);
-    printf("  %s delta  R1 R2 R3          Δ → Y 变换\n", prog);
-    printf("  %s wye    Ra Rb Rc          Y → Δ 变换\n", prog);
+    printf("  %s delta  R12 R23 R13       Δ → Y 变换\n", prog);
+    printf("  %s wye    R1  R2  R3        Y → Δ 变换\n", prog);
     printf("  %s bridge R1 R2 R3 R4 R5    桥式电路等效电阻\n", prog);
     printf("  %s color  色1 色2 色3 ...   色环 → 阻值\n", prog);
     printf("  %s findcolor 4700           阻值 → 色环\n", prog);
@@ -514,9 +517,9 @@ int main(int argc, char **argv) {
             DeltaWye dw = delta_to_wye(r1, r2, r3);
             printf("Δ (%s, %s, %s) → Y\n",
                    argv[2], argv[3], argv[4]);
-            printf("  Ra = "); frac_print(dw.a); printf(" (≈ %.4f Ω)\n", frac_to_double(dw.a));
-            printf("  Rb = "); frac_print(dw.b); printf(" (≈ %.4f Ω)\n", frac_to_double(dw.b));
-            printf("  Rc = "); frac_print(dw.c); printf(" (≈ %.4f Ω)\n", frac_to_double(dw.c));
+            printf("  R1 = "); frac_print(dw.r1); printf(" (≈ %.4f Ω)\n", frac_to_double(dw.r1));
+            printf("  R2 = "); frac_print(dw.r2); printf(" (≈ %.4f Ω)\n", frac_to_double(dw.r2));
+            printf("  R3 = "); frac_print(dw.r3); printf(" (≈ %.4f Ω)\n", frac_to_double(dw.r3));
             return 0;
         }
 
@@ -527,9 +530,9 @@ int main(int argc, char **argv) {
             DeltaWye dw = wye_to_delta(ra, rb, rc);
             printf("Y (%s, %s, %s) → Δ\n",
                    argv[2], argv[3], argv[4]);
-            printf("  R1 = "); frac_print(dw.a); printf(" (≈ %.4f Ω)\n", frac_to_double(dw.a));
-            printf("  R2 = "); frac_print(dw.b); printf(" (≈ %.4f Ω)\n", frac_to_double(dw.b));
-            printf("  R3 = "); frac_print(dw.c); printf(" (≈ %.4f Ω)\n", frac_to_double(dw.c));
+            printf("  R12 = "); frac_print(dw.r1); printf(" (≈ %.4f Ω)\n", frac_to_double(dw.r1));
+            printf("  R23 = "); frac_print(dw.r2); printf(" (≈ %.4f Ω)\n", frac_to_double(dw.r2));
+            printf("  R13 = "); frac_print(dw.r3); printf(" (≈ %.4f Ω)\n", frac_to_double(dw.r3));
             return 0;
         }
 
@@ -543,8 +546,8 @@ int main(int argc, char **argv) {
                    argv[2],argv[3],argv[4],argv[5],argv[6]);
             printf("  将左三角 (R1, R2, R5) Δ → Y ...\n");
             DeltaWye dw = delta_to_wye(r1, r2, r5);
-            printf("  Ra = "); frac_print(dw.a); printf("  Rb = "); frac_print(dw.b);
-            printf("  Rc = "); frac_print(dw.c); printf("\n");
+            printf("  变换后: R1(接C)="); frac_print(dw.r1); printf("  R2(接A)="); frac_print(dw.r2);
+            printf("  R3(接D)="); frac_print(dw.r3); printf("\n");
             Frac result = bridge_solve(r1, r2, r3, r4, r5);
             printf("  等效电阻 = "); frac_print(result);
             printf(" (≈ %.6f Ω)\n", frac_to_double(result));
@@ -596,21 +599,21 @@ int main(int argc, char **argv) {
         if (strcmp(cmd, "delta") == 0 && n >= 4) {
             Frac r1=frac_from_double(v[0]), r2=frac_from_double(v[1]), r3=frac_from_double(v[2]);
             DeltaWye dw = delta_to_wye(r1, r2, r3);
-            printf("Δ→Y:  Ra="); frac_print(dw.a);
-            printf("  Rb="); frac_print(dw.b);
-            printf("  Rc="); frac_print(dw.c);
+            printf("Δ→Y:  R1="); frac_print(dw.r1);
+            printf("  R2="); frac_print(dw.r2);
+            printf("  R3="); frac_print(dw.r3);
             printf("\n     (≈ %.4f, %.4f, %.4f Ω)\n",
-                   frac_to_double(dw.a),frac_to_double(dw.b),frac_to_double(dw.c));
+                   frac_to_double(dw.r1),frac_to_double(dw.r2),frac_to_double(dw.r3));
             continue;
         }
         if (strcmp(cmd, "wye") == 0 && n >= 4) {
             Frac ra=frac_from_double(v[0]), rb=frac_from_double(v[1]), rc=frac_from_double(v[2]);
             DeltaWye dw = wye_to_delta(ra, rb, rc);
-            printf("Y→Δ:  R1="); frac_print(dw.a);
-            printf("  R2="); frac_print(dw.b);
-            printf("  R3="); frac_print(dw.c);
+            printf("Y→Δ:  R12="); frac_print(dw.r1);
+            printf("  R23="); frac_print(dw.r2);
+            printf("  R13="); frac_print(dw.r3);
             printf("\n     (≈ %.4f, %.4f, %.4f Ω)\n",
-                   frac_to_double(dw.a),frac_to_double(dw.b),frac_to_double(dw.c));
+                   frac_to_double(dw.r1),frac_to_double(dw.r2),frac_to_double(dw.r3));
             continue;
         }
         if (strcmp(cmd, "bridge") == 0 && n >= 6) {
@@ -618,8 +621,8 @@ int main(int argc, char **argv) {
             Frac r4=frac_from_double(v[3]), r5=frac_from_double(v[4]);
             Frac result = bridge_solve(r1, r2, r3, r4, r5);
             DeltaWye dw = delta_to_wye(r1, r2, r5);
-            printf("左三角 Δ→Y: Ra(接A)="); frac_print(dw.a); printf(" Rb="); frac_print(dw.b);
-            printf(" Rc="); frac_print(dw.c); printf("\n");
+            printf("左三角 Δ→Y: R1(接C)="); frac_print(dw.r1); printf(" R2(接A)="); frac_print(dw.r2);
+            printf(" R3(接D)="); frac_print(dw.r3); printf("\n");
             printf("等效电阻 = "); frac_print(result);
             printf(" (≈ %.6f Ω)\n", frac_to_double(result));
             continue;
