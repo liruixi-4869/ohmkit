@@ -568,10 +568,11 @@ int main(int argc, char **argv) {
             Frac r5 = frac_from_double(atof(argv[6]));
             printf("桥式电路 (R1=%s, R2=%s, R3=%s, R4=%s, R5=%s)\n",
                    argv[2],argv[3],argv[4],argv[5],argv[6]);
-            printf("  将左三角 (R1, R2, R5) Δ → Y ...\n");
+            printf("  左三角 Δ(R12=R1, R23=R2, R13=R5) → Y:\n");
             DeltaWye dw = delta_to_wye(r1, r2, r5);
-            printf("  变换后: R1(接C)="); frac_print(dw.r1); printf("  R2(接A)="); frac_print(dw.r2);
-            printf("  R3(接D)="); frac_print(dw.r3); printf("\n");
+            printf("  R1 = "); frac_print(dw.r1); printf("  (↔ Δ R23=%s)\n", argv[3]);
+            printf("  R2 = "); frac_print(dw.r2); printf("  (↔ Δ R13=%s)\n", argv[6]);
+            printf("  R3 = "); frac_print(dw.r3); printf("  (↔ Δ R12=%s)\n", argv[2]);
             Frac result = bridge_solve(r1, r2, r3, r4, r5);
             printf("  等效电阻 = "); frac_print(result);
             printf(" (≈ %.6f Ω)\n", frac_to_double(result));
@@ -646,8 +647,10 @@ int main(int argc, char **argv) {
             Frac r4=frac_from_double(v[3]), r5=frac_from_double(v[4]);
             Frac result = bridge_solve(r1, r2, r3, r4, r5);
             DeltaWye dw = delta_to_wye(r1, r2, r5);
-            printf("左三角 Δ→Y: R1(接C)="); frac_print(dw.r1); printf(" R2(接A)="); frac_print(dw.r2);
-            printf(" R3(接D)="); frac_print(dw.r3); printf("\n");
+            printf("左三角 Δ(R12=R1, R23=R2, R13=R5) → Y:\n");
+            printf("  R1 = "); frac_print(dw.r1);
+            printf("  R2 = "); frac_print(dw.r2);
+            printf("  R3 = "); frac_print(dw.r3); printf("\n");
             printf("等效电阻 = "); frac_print(result);
             printf(" (≈ %.6f Ω)\n", frac_to_double(result));
             continue;
