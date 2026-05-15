@@ -42,40 +42,45 @@ static long long gcd(long long a, long long b) {
     return a;
 }
 
-static Frac frac_make(long long num, long long den) {
+Frac frac_make(long long num, long long den) {
     if (den == 0)      { num = 0; den = 1; }
     if (den < 0)       { num = -num; den = -den; }
     long long g = gcd(num, den);
     return (Frac){ num / g, den / g };
 }
 
-static Frac frac_add(Frac a, Frac b) {
+Frac frac_add(Frac a, Frac b) {
     return frac_make(a.num * b.den + b.num * a.den, a.den * b.den);
 }
 
-static Frac frac_mul(Frac a, Frac b) {
+Frac frac_mul(Frac a, Frac b) {
     return frac_make(a.num * b.num, a.den * b.den);
 }
 
-static Frac frac_div(Frac a, Frac b) {
+Frac frac_div(Frac a, Frac b) {
     return frac_make(a.num * b.den, a.den * b.num);
 }
 
 /* 并联：a || b = ab / (a+b) */
-static Frac frac_par(Frac a, Frac b) {
+Frac frac_par(Frac a, Frac b) {
     if (a.num == 0 || b.num == 0) return frac_make(0, 1);
     return frac_make(a.num * b.num, a.num * b.den + b.num * a.den);
 }
 
-static int    frac_is_zero(Frac a)      { return a.num == 0; }
-static double frac_to_double(Frac a)    { return (double)a.num / (double)a.den; }
+int frac_is_zero(Frac a)      { return a.num == 0; }
+double frac_to_double(Frac a)    { return (double)a.num / (double)a.den; }
 
-static void frac_print(Frac a) {
+void frac_print(Frac a) {
     if (a.den == 1) printf("%lld", a.num);
     else            printf("%lld/%lld", a.num, a.den);
 }
 
-static Frac frac_from_double(double dv) {
+int frac_snprint(char *buf, size_t n, Frac a) {
+    if (a.den == 1) return snprintf(buf, n, "%lld", a.num);
+    else            return snprintf(buf, n, "%lld/%lld", a.num, a.den);
+}
+
+Frac frac_from_double(double dv) {
     long long int_part = (long long)dv;
     double frac_part = dv - (double)int_part;
     if (frac_part < 0) { frac_part = -frac_part; int_part = -int_part; }
@@ -111,7 +116,7 @@ static Frac frac_from_double(double dv) {
 typedef struct { Frac r1, r2, r3; } DeltaWye;
 
 /* Δ → Y：R1 = R12·R13/Σ, R2 = R12·R23/Σ, R3 = R23·R13/Σ */
-static DeltaWye delta_to_wye(Frac R12, Frac R23, Frac R13) {
+DeltaWye delta_to_wye(Frac R12, Frac R23, Frac R13) {
     Frac sum = frac_add(frac_add(R12, R23), R13);
     if (frac_is_zero(sum)) return (DeltaWye){{0,1},{0,1},{0,1}};
     return (DeltaWye){
@@ -122,7 +127,7 @@ static DeltaWye delta_to_wye(Frac R12, Frac R23, Frac R13) {
 }
 
 /* Y → Δ：R12 = (R1·R2+R2·R3+R3·R1)/R3, R23 = N/R1, R13 = N/R2 */
-static DeltaWye wye_to_delta(Frac R1, Frac R2, Frac R3) {
+DeltaWye wye_to_delta(Frac R1, Frac R2, Frac R3) {
     Frac num = frac_add(frac_add(frac_mul(R1, R2), frac_mul(R2, R3)),
                         frac_mul(R3, R1));
     if (frac_is_zero(R3) || frac_is_zero(R1) || frac_is_zero(R2))
@@ -135,7 +140,7 @@ static DeltaWye wye_to_delta(Frac R1, Frac R2, Frac R3) {
 }
 
 /* 桥式电路求解 */
-static Frac bridge_solve(Frac R1, Frac R2, Frac R3, Frac R4, Frac R5) {
+Frac bridge_solve(Frac R1, Frac R2, Frac R3, Frac R4, Frac R5) {
     /* 左三角 (R1,R2,R5) = (R12,R23,R13) → Y (r1 接 C, r2 接 A, r3 接 D) */
     DeltaWye dw = delta_to_wye(R1, R2, R5);
 
@@ -151,30 +156,31 @@ static Frac bridge_solve(Frac R1, Frac R2, Frac R3, Frac R4, Frac R5) {
    第三部分：色环电阻
    ═══════════════════════════════════════════════════════════════ */
 
-static const char *digit_names[] = {
+const char *digit_names[] = {
     "黑", "棕", "红", "橙", "黄", "绿", "蓝", "紫", "灰", "白"
 };
-static const char *digit_en[] = {
+const char *digit_en[] = {
     "black", "brown", "red", "orange", "yellow",
     "green", "blue", "violet", "grey", "white"
 };
 
 /* 乘数：black=1, brown=10, ..., white=1G, gold=0.1, silver=0.01 */
-static const double mult_table[] = {
+const double mult_table[] = {
     1, 10, 100, 1e3, 1e4, 1e5, 1e6, 1e7, 1e8, 1e9,   // 0-9
     0.1, 0.01                                            // 10=gold, 11=silver
 };
-static const char *mult_names[] = {
+const char *mult_names[] = {
     "黑","棕","红","橙","黄","绿","蓝","紫","灰","白","金","银"
 };
 
 /* 误差：棕=1%, 红=2%, 绿=0.5%, 蓝=0.25%, 紫=0.1%, 金=5%, 银=10% */
-static const double tol_table[]   = { 1, 2, 0.5, 0.25, 0.1, 5, 10 };
-static const int   tol_index[]    = { 1, 2, 4, 5, 6, 10, 11 };
+const double tol_table[]   = { 1, 2, 0.5, 0.25, 0.1, 5, 10 };
+const int tol_index[]    = { 1, 2, 4, 5, 6, 10, 11 };
 /* tol_index 对应 digit_en / digit_names 中的索引；金=10, 银=11 */
 
+
 /* 识别颜色名（支持中英文、全称和部分缩写） */
-static int match_color(const char *s) {
+int match_color(const char *s) {
     if (!s || !*s) return -1;
     char buf[32]; int i = 0;
     while (*s && i < 31) buf[i++] = (char)tolower((unsigned char)*s++);
@@ -213,7 +219,7 @@ static int match_color(const char *s) {
 }
 
 /* 色环 → 阻值 */
-static void color_decode(int n_bands, const char **bands) {
+void color_decode(int n_bands, const char **bands) {
     if (n_bands < 3 || n_bands > 5) {
         fprintf(stderr, "需要 3~5 个色环（3/4 环或 5 环）\n"); return;
     }
@@ -264,7 +270,7 @@ static void color_decode(int n_bands, const char **bands) {
 }
 
 /* 阻值 → 最近标准色环 */
-static void color_encode(double target) {
+void color_encode(double target) {
     /* E24 标准值数列 */
     static const int e24[] = {
         10,11,12,13,15,16,18,20,22,24,27,30,33,36,39,43,47,51,56,62,68,75,82,91
@@ -308,9 +314,9 @@ static void color_encode(double target) {
    第四部分：表达式解析器（同 v3）
    ═══════════════════════════════════════════════════════════════ */
 
-static Frac parse_expr(const char **s, int verbose, int depth);
-static void skip_spaces(const char **s);
-static void indent(int d) { while (d--) printf("  "); }
+Frac parse_expr(const char **s, int verbose, int depth);
+void skip_spaces(const char **s);
+void indent(int d) { while (d--) printf("  "); }
 
 static Frac parse_atom(const char **s, int verbose, int depth) {
     skip_spaces(s);
@@ -324,11 +330,22 @@ static Frac parse_atom(const char **s, int verbose, int depth) {
         return r;
     }
 
-    if (isdigit((unsigned char)**s) || **s == '.') {
+    if (isdigit((unsigned char)**s) || **s == '.' || **s == '-') {
         char *end;
         double dv = strtod(*s, &end);
         if (end == *s) { fprintf(stderr, "语法错误：无效数字 '%c'\n", **s); exit(1); }
         *s = end;
+
+        /* 支持分数输入: 3/7, -1/2 */
+        skip_spaces(s);
+        if (**s == '/') {
+            (*s)++; skip_spaces(s);
+            long long den = strtoll(*s, &end, 10);
+            if (end == *s || den == 0) { fprintf(stderr, "语法错误：无效分母\n"); exit(1); }
+            *s = end;
+            return frac_make((long long)dv, den);
+        }
+
         return frac_from_double(dv);
     }
 
@@ -355,7 +372,7 @@ static Frac parse_term(const char **s, int verbose, int depth) {
     return result;
 }
 
-static Frac parse_expr(const char **s, int verbose, int depth) {
+Frac parse_expr(const char **s, int verbose, int depth) {
     Frac result = parse_term(s, verbose, depth);
     for (;;) {
         skip_spaces(s);
@@ -375,7 +392,7 @@ static Frac parse_expr(const char **s, int verbose, int depth) {
     return result;
 }
 
-static void skip_spaces(const char **s) {
+void skip_spaces(const char **s) {
     while (**s && isspace((unsigned char)**s)) (*s)++;
 }
 
@@ -508,6 +525,7 @@ static void usage(const char *prog) {
     printf("  delta / wye / bridge / color / findcolor / build / quit\n");
 }
 
+#ifndef OHMKIT_LIB
 int main(int argc, char **argv) {
     /* ── 命令行子命令分发 ── */
     if (argc >= 2) {
@@ -670,4 +688,17 @@ int main(int argc, char **argv) {
     }
     printf("再见。\n");
     return 0;
+}
+#endif /* OHMKIT_LIB */
+
+/* ─── 公共 API 包装 ─── */
+typedef struct { Frac val; const char *err; } ParseResult;
+
+ParseResult parse_expr_str(const char *s) {
+    ParseResult r = {{0,1}, NULL};
+    const char *p = s;
+    r.val = parse_expr(&p, 0, 0);
+    skip_spaces(&p);
+    if (*p) r.err = "表达式未完全解析";
+    return r;
 }
